@@ -142,7 +142,7 @@ check("claude-code: runs in an empty folder of its own", "peakcut-claude-" in as
 os.environ["PEAKCUT_AI_KEY"] = "a-key-meant-for-another-service"
 config._kept.clear()
 ai.call("haiku", "hello", brain.SCHEMA)
-check("claude-code: no key of PeakCut's is ever handed to Claude Code", json.load(open(fake_log))["token"] is None and ai.key() == "")
+check("claude-code: no key of ClipForge's is ever handed to Claude Code", json.load(open(fake_log))["token"] is None and ai.key() == "")
 saved = ai.save("claude-code", "sonnet, haiku", "", "pasted-by-mistake-123456")
 stored = json.load(open(os.path.join(os.environ["PEAKCUT_DATA"], "ai.json")))
 check("claude-code: saving keeps no key at all", stored["key"] == "" and not saved["has_key"] and saved["ready"], str(stored))

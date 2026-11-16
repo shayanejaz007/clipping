@@ -2,7 +2,7 @@
 
     python tests/run.py
 
-Starts PeakCut on a spare port with an empty, temporary data folder, runs the tests against it, then stops it and
+Starts ClipForge on a spare port with an empty, temporary data folder, runs the tests against it, then stops it and
 deletes the folder. Your real data and your running server are never touched. No AI key is needed: the tests cover accounts, permissions, limits and the queue, not clip quality."""
 import os
 import shutil
@@ -53,6 +53,7 @@ def main() -> int:
                 ("AI services", ["tests/test_ai.py"]),
                 ("how posts are worded: title and text templates", ["tests/test_templates.py"]),
                 ("copying clips into a folder", ["tests/test_export.py"]),
+                ("automation and the Claude account", ["tests/test_automation.py"]),
                 ("no sign-in, and the AI key from the dashboard", ["tests/test_local.py"]),
                 ("Hindi and Urdu captions in Roman letters", ["tests/test_roman.py"]),
                 ("connecting YouTube, Instagram and TikTok", ["tests/test_connect.py"]),

@@ -10,7 +10,7 @@ For each clip two files land side by side, named after the clip:
 
 The title and text are worded with the same templates as posting (studio/posting.py), so what is in the folder is
 exactly what would be posted. When a clip is re-made, its two files are replaced; if its title changed, the old
-pair is removed so the folder never holds two copies of one clip. A folder of your own is only offered when PeakCut
+pair is removed so the folder never holds two copies of one clip. A folder of your own is only offered when ClipForge
 runs on your own computer (accounts off): on a shared site, nobody may write into the server's folders."""
 import os
 import re
@@ -27,6 +27,12 @@ def folder_for(creator) -> str:
     own = (creator or {}).get("export_folder") or ""
     if own and not config.ACCOUNTS:
         return own
+    from . import ctx
+    if not config.ACCOUNTS and ctx.uid_or_none():
+        from . import automation                  # the folder chosen on the Automation page
+        a = automation.settings()
+        if a["folder"]:
+            return a["folder"]
     return config.EXPORT_DIR
 
 
@@ -36,7 +42,7 @@ def check_folder(raw: str) -> str:
     if not raw:
         return ""
     if config.ACCOUNTS:
-        raise ValueError("A clip folder can only be chosen when PeakCut runs on your own computer.")
+        raise ValueError("A clip folder can only be chosen when ClipForge runs on your own computer.")
     p = Path(os.path.expanduser(raw))
     if not p.is_absolute():
         raise ValueError("Give the whole path of the folder, for example D:\\Clips or /Users/you/Clips.")
@@ -46,7 +52,7 @@ def check_folder(raw: str) -> str:
         probe.write_text("ok", encoding="utf-8")
         probe.unlink()
     except OSError as e:
-        raise ValueError(f"PeakCut can't write into that folder ({e.strerror or e}). Choose another one.") from None
+        raise ValueError(f"ClipForge can't write into that folder ({e.strerror or e}). Choose another one.") from None
     return str(p.resolve())[:500]
 
 

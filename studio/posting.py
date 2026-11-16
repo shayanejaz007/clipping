@@ -7,7 +7,7 @@ from pathlib import Path
 
 import json
 
-from . import accounts, alerts, config, creators, ctx, jobs, live
+from . import accounts, alerts, automation, config, creators, ctx, jobs, live
 
 _lock = threading.RLock()
 _FILE = config.DATA_DIR / "posts.json"
@@ -55,8 +55,11 @@ def _next_slot(account_id, gap_min, cap):
     return t
 
 
-def enqueue(job, clip, account_ids, now=False) -> list:
-    c = creators.get(job["creator"]) or creators.DEFAULTS
+def enqueue(job, clip, account_ids, now=False, rules=None) -> list:
+    """Schedule the clip for each account. `rules` (gap_min, daily_cap) overrides the creator's spacing."""
+    c = dict(creators.get(job["creator"]) or creators.DEFAULTS)
+    if rules:
+        c.update(post_gap_min=rules["gap_min"], daily_cap=rules["daily_cap"])
     made = []
     with _lock:
         for aid in account_ids:
@@ -82,13 +85,19 @@ def enqueue(job, clip, account_ids, now=False) -> list:
 def on_clip_ready(job, clip):
     """Called once when a clip first finishes rendering."""
     c = creators.get(job["creator"])
-    if not c or not c["autopost"] or not c["accounts"]:
+    if c and c["autopost"] and c["accounts"]:        # the creator's own posting rules come first
+        if clip.get("score", 0) < c["post_min_score"]:
+            return  # includes hand-made clips (score 0): those wait for you to press Post
+        made = enqueue(job, clip, c["accounts"])
+        if made:
+            creators.log(c["id"], f"Queued for {len(made)} account(s): {clip.get('title') or clip.get('hook')}")
         return
-    if clip.get("score", 0) < c["post_min_score"]:
-        return  # includes hand-made clips (score 0): those wait for you to press Post
-    made = enqueue(job, clip, c["accounts"])
-    if made:
-        creators.log(c["id"], f"Queued for {len(made)} account(s): {clip.get('title') or clip.get('hook')}")
+    a = automation.settings()                        # otherwise the Automation page decides
+    if not a["on"] or not a["accounts"] or clip.get("score", 0) < a["min_score"]:
+        return
+    made = enqueue(job, clip, a["accounts"], rules=a)
+    if made and job["creator"]:
+        creators.log(job["creator"], f"Automation queued it for {len(made)} account(s): {clip.get('title') or clip.get('hook')}")
 
 
 def _fill(template, clip, creator):
@@ -118,6 +127,26 @@ def _caption(clip, creator):
     return "\n\n".join(x for x in (clip.get("description", ""), tags, creator.get("post_footer", "")) if x)
 
 
+def _human(job, clip, creator, platform):
+    """(title, caption) the AI wrote for this platform in a natural voice, when Automation has human captions on.
+    Written once per clip and platform and kept on the clip, so a retry posts the same words. None: use templates."""
+    from . import brain
+    a = automation.settings()
+    if not a["human_captions"]:
+        return None
+    got = (clip.get("human") or {}).get(platform)
+    if not got:
+        got = brain.human_caption(clip, platform, job.get("title", ""), creator.get("name", ""), a["voice"])
+        if not got:
+            return None
+        clip.setdefault("human", {})[platform] = got
+        jobs.save(job)
+    tags = " ".join("#" + h for h in got["hashtags"])
+    extra = " ".join(t for t in automation.tags_line(a).split() if t.lower() not in tags.lower())
+    cap = "\n\n".join(x for x in (got["caption"], " ".join(x for x in (tags, extra) if x)) if x)
+    return (got["title"] or clip.get("title") or "Clip")[:100], cap
+
+
 def _post(p):
     job = jobs.get(p["job"])
     clip = next((c for c in job["clips"] if c["id"] == p["clip"]), None) if job else None
@@ -130,6 +159,9 @@ def _post(p):
         path = Path(job["dir"]) / "clips" / clip["file"]
         creator = creators.get(job["creator"]) or dict(creators.DEFAULTS, name="clips")
         title, cap = _title(clip, creator), _caption(clip, creator)
+        human = _human(job, clip, creator, acc["platform"])
+        if human:
+            title, cap = human
         if acc["platform"] == "youtube":
             shorts = "" if "#shorts" in (title + cap).lower() else "\n\n#Shorts"     # once is enough
             rid, url = accounts.youtube_upload(acc, path, title, cap + shorts, clip.get("hashtags", []), creator["privacy"])
@@ -262,7 +294,7 @@ def overview() -> dict:
 
 def digest_text() -> str:
     o = overview()
-    lines = ["PeakCut daily summary"]
+    lines = ["ClipForge daily summary"]
     for r in o["creators"]:
         lines.append(f"- {r['name']}: {r['state']}, {r['clips_today']} clips today, {r['posted_today']} posted today, "
                      f"{r['queued']} waiting, {r['failed']} failed, {r['views']} views")

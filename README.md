@@ -1,9 +1,9 @@
-# PeakCut
+# ClipForge
 
 Turn long videos and live streams into captioned vertical clips, ready to post. Free and open source: run it on
 your own computer or server, with your own AI key.
 
-Paste a YouTube, Twitch or Kick link (or upload a file) and PeakCut finds the moments worth clipping, cuts them to
+Paste a YouTube, Twitch or Kick link (or upload a file) and ClipForge finds the moments worth clipping, cuts them to
 9:16, adds word-by-word captions and a hook, and can post them to your connected accounts. It can also record a
 creator's live stream and clip the highlights while the stream is still running.
 
@@ -24,7 +24,7 @@ creator's live stream and clip the highlights while the stream is still running.
 ## Quick start
 
 You need Python 3.10 or newer and `ffmpeg`. On Windows: `winget install Gyan.FFmpeg`. On a Mac: `brew install ffmpeg`.
-On Linux: `sudo apt install ffmpeg`. PeakCut finds it by itself and tells you in the dashboard if it is missing.
+On Linux: `sudo apt install ffmpeg`. ClipForge finds it by itself and tells you in the dashboard if it is missing.
 
 ```bash
 git clone <this repository> peakcut
@@ -51,7 +51,7 @@ your AI service, paste your key and press **Save and test** (see [Choose your AI
 
 ## Choose your AI
 
-PeakCut needs a chat model that can return JSON. The easy way is in the dashboard: **Settings, AI**. Pick the
+ClipForge needs a chat model that can return JSON. The easy way is in the dashboard: **Settings, AI**. Pick the
 service, paste your key, press **Find models** to choose from the service's own list, then **Save and test**. The
 key is kept in the data folder on your machine and is never shown again.
 
@@ -84,9 +84,9 @@ PEAKCUT_AI_KEY=your-key-here
 
 ### Use your Claude plan
 
-If you pay for Claude Pro or Max, PeakCut can use that instead of an API key. It asks Claude through the Claude Code
-program on the same computer, which you sign in to yourself through Anthropic's own sign-in. PeakCut never sees or
-keeps your Claude sign-in. Since 15 June 2026, Claude Code's background use (`claude -p`, which is what PeakCut runs)
+If you pay for Claude Pro or Max, ClipForge can use that instead of an API key. It asks Claude through the Claude Code
+program on the same computer, which you sign in to yourself through Anthropic's own sign-in. ClipForge never sees or
+keeps your Claude sign-in. Since 15 June 2026, Claude Code's background use (`claude -p`, which is what ClipForge runs)
 is counted against your plan's monthly allowance for apps and scripts, which is kept separate from your normal chat
 limits.
 
@@ -94,7 +94,7 @@ limits.
    `curl -fsSL https://claude.ai/install.sh | bash`; on Windows, in PowerShell: `irm https://claude.ai/install.ps1 | iex`).
 2. Sign in once: open a terminal, run `claude`, type `/login`, choose your Claude account and finish in the browser.
    Then type `/exit`.
-3. In PeakCut, open **Settings, AI**, choose **Claude (your Pro or Max plan)**, type `sonnet` as the model (or
+3. In ClipForge, open **Settings, AI**, choose **Claude (your Pro or Max plan)**, type `sonnet` as the model (or
    `haiku`, which uses less of your plan) and press **Save and test**. There is no key to paste.
 
 Or in `.env`:
@@ -104,10 +104,10 @@ PEAKCUT_AI_PROVIDER=claude-code
 PEAKCUT_AI_MODELS=sonnet,haiku
 ```
 
-- If PeakCut says Claude Code isn't installed although it is, set `PEAKCUT_CLAUDE_CLI` to the full path of the
+- If ClipForge says Claude Code isn't installed although it is, set `PEAKCUT_CLAUDE_CLI` to the full path of the
   program (`which claude` on a Mac or Linux, `where claude` on Windows shows it).
 - On a machine with no browser, sign Claude Code in the way its own docs describe
-  (https://code.claude.com/docs/en/authentication). PeakCut only starts the program and leaves the sign-in to it.
+  (https://code.claude.com/docs/en/authentication). ClipForge only starts the program and leaves the sign-in to it.
 - An `ANTHROPIC_API_KEY` in your environment is ignored for this choice, so your plan is used and not API credit.
 - Claude Code is run with all of its tools switched off, in an empty folder, so text from a video can't make it read
   or change anything on your computer.
@@ -133,7 +133,7 @@ Everything is set through environment variables, normally in a `.env` file next 
 
 This only matters with accounts switched on (`PEAKCUT_ACCOUNTS=1`); without them you are the owner and can do
 everything. An account is an admin only when the database says so. No email address is special in the code and no web request
-can change a role. Do it on the machine that runs PeakCut:
+can change a role. Do it on the machine that runs ClipForge:
 
 ```bash
 python -m studio.admin grant you@example.com
@@ -158,20 +158,17 @@ assistants.
 
 ## Where your videos and clips are kept
 
-Everything PeakCut keeps is in one folder: videos, clips, recordings, creators, settings and the speech model. By
-default it is the `data` folder inside PeakCut. **Settings, Storage** shows the folder and how much room its drive
-has, opens it in one click, and lets you move it to another drive: choose the new folder, and PeakCut moves
-everything there the next time it starts. If the drive is nearly full, PeakCut says so and stops taking new videos
+Everything ClipForge keeps is in one folder: videos, clips, recordings, creators, settings and the speech model. By
+default it is the `data` folder inside ClipForge. **Settings, Storage** shows the folder and how much room its drive
+has, opens it in one click, and lets you move it to another drive: choose the new folder, and ClipForge moves
+everything there the next time it starts. If the drive is nearly full, ClipForge says so and stops taking new videos
 until there is room. (`PEAKCUT_DATA` in `.env` still works and takes priority.)
 
 ## Updating
 
-PeakCut checks GitHub once a minute while it runs. When a newer version is out, the dashboard shows a notice
-within a minute or two (no restart needed), with what changed
-and how to update: ask your AI coding assistant to do it (the notice has a sentence to paste), or run
-`git pull && pip install -r requirements.txt` in the PeakCut folder and restart it (with Docker:
-`git pull && docker compose up -d --build`). Your `.env`, keys and clips are not touched. Only the two commit ids
-are sent to GitHub; set `PEAKCUT_UPDATE_CHECK=0` to turn the check off.
+The check for newer versions on GitHub is off. To update by hand, run
+`git pull && pip install -r requirements.txt` in the ClipForge folder and restart it. Your `.env`, keys and clips
+are not touched. Set `PEAKCUT_UPDATE_CHECK=1` (and `PEAKCUT_UPDATE_REPO=owner/repo`) to turn the check back on.
 
 ## Deploy
 
@@ -202,7 +199,7 @@ queue tests against it, then removes it. It needs no keys and never touches real
 
 ## Security
 
-- With sign-in off, PeakCut listens on this computer only (`127.0.0.1`), refuses changes sent by other websites,
+- With sign-in off, ClipForge listens on this computer only (`127.0.0.1`), refuses changes sent by other websites,
   and only answers to its own address. Do not expose it to the internet that way: turn accounts on.
 - Passwords are stored only as salted scrypt hashes. Sessions are random tokens stored hashed; cookies are HTTP-only.
 - Every route works out who is asking from the session, never from the request, so users only reach their own data.
@@ -215,7 +212,7 @@ queue tests against it, then removes it. It needs no keys and never touches real
 Clip videos you made, or have permission to use. You are responsible for the rights to what you download, clip and
 post, and for following the terms of the sites you fetch from and post to.
 
-## Licence
+## Fonts
 
-[MIT](LICENSE). Caption fonts in `studio/fonts/` (Anton, Archivo Black, Poppins) are under the SIL Open Font
-License; the licence texts are in the same folder.
+Caption fonts in `studio/fonts/` (Anton, Archivo Black, Poppins) are under the SIL Open Font License; the licence
+texts are in the same folder.

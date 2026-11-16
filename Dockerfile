@@ -1,4 +1,4 @@
-# PeakCut: one image with the web server, the clip pipeline and ffmpeg.
+# ClipForge: one image with the web server, the clip pipeline and ffmpeg.
 FROM python:3.11-slim
 
 RUN apt-get update \

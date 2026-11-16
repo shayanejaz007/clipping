@@ -4,12 +4,12 @@
     PEAKCUT_AI_PROVIDER   gemini | openai | xai | groq | openrouter | anthropic | claude-code | ollama | custom
     PEAKCUT_AI_MODELS     one or more model ids, comma separated, tried in this order
     PEAKCUT_AI_KEY        your key (or PEAKCUT_AI_KEY_FILE, a file holding it)
-    PEAKCUT_CLAUDE_CLI    only for "claude-code", if the claude program is somewhere PeakCut doesn't look
+    PEAKCUT_CLAUDE_CLI    only for "claude-code", if the claude program is somewhere ClipForge doesn't look
 
 "claude-code" uses your Claude Pro or Max plan instead of a paid API key. It asks the Claude Code program on this
 machine, which you sign in to yourself through Anthropic's own sign-in (run `claude` once and type /login).
-PeakCut never sees, asks for or keeps your Claude sign-in. Anthropic's terms allow this for your own use only, so
-it is switched off when PeakCut runs as a shared site with accounts (PEAKCUT_ACCOUNTS=1).
+ClipForge never sees, asks for or keeps your Claude sign-in. Anthropic's terms allow this for your own use only, so
+it is switched off when ClipForge runs as a shared site with accounts (PEAKCUT_ACCOUNTS=1).
     PEAKCUT_AI_BASE_URL   only for "custom" (any service that speaks the OpenAI chat format), or to override
 
 Every service is asked for the same thing: JSON that follows a small schema. Gemini takes the schema directly.
@@ -235,7 +235,7 @@ def explain(e) -> str:
     if "429" in text or "quota" in low or "rate limit" in low or "exhausted" in low:
         return f"{label()} says the key has hit its limit or has no credit left. Check the account with {label()}, or try again later."
     if "connect" in low or "timed out" in low or "timeout" in low or "getaddrinfo" in low or "refused" in low:
-        return f"PeakCut couldn't reach {label()}. Check the internet connection" + (" and that Ollama is running." if provider() == "ollama" else ".")
+        return f"ClipForge couldn't reach {label()}. Check the internet connection" + (" and that Ollama is running." if provider() == "ollama" else ".")
     return ""
 
 
@@ -354,6 +354,70 @@ def claude_cli() -> str:
         if p.is_file():
             return str(p)
     return ""
+
+
+_login = {"proc": None, "at": 0.0}               # the sign-in window started from Settings, while it is open
+_status_mem = {"at": 0.0, "data": None}
+
+
+def _no_window() -> int:
+    return getattr(subprocess, "CREATE_NO_WINDOW", 0) if sys.platform == "win32" else 0
+
+
+def claude_account(fresh: bool = False) -> dict:
+    """Which Claude account the Claude Code program on this machine is signed in to, as Claude Code itself reports
+    it: {installed, signed_in, email, plan, org, signing_in}. Asked at most every 20 seconds unless `fresh`."""
+    import time
+    signing_in = bool(_login["proc"] and _login["proc"].poll() is None)
+    if not fresh and _status_mem["data"] and time.time() - _status_mem["at"] < 20 and not signing_in:
+        return dict(_status_mem["data"], signing_in=False)
+    exe = claude_cli()
+    out = {"installed": bool(exe), "signed_in": False, "email": "", "plan": "", "org": "", "method": ""}
+    if exe and not config.ACCOUNTS:
+        try:
+            r = subprocess.run([exe, "auth", "status", "--json"], capture_output=True, text=True, encoding="utf-8",
+                               errors="replace", timeout=30, creationflags=_no_window())
+            txt = r.stdout or ""
+            d = json.loads(txt[txt.find("{"):]) if "{" in txt else {}
+            out.update(signed_in=bool(d.get("loggedIn")), email=str(d.get("email") or "")[:200],
+                       plan=str(d.get("subscriptionType") or "")[:40], org=str(d.get("orgName") or "")[:200],
+                       method=str(d.get("authMethod") or "")[:40])
+        except (OSError, ValueError, subprocess.TimeoutExpired):
+            pass
+    _status_mem.update(at=time.time(), data=out)
+    return dict(out, signing_in=signing_in)
+
+
+def claude_login() -> dict:
+    """Open Anthropic's own Claude sign-in for the Claude Code program on this machine. A window opens (and your
+    browser); you sign in there. ClipForge never sees the password or the sign-in itself."""
+    import time
+    if config.ACCOUNTS:
+        raise ValueError(PLAN_ONLY_OWN_USE)
+    exe = claude_cli()
+    if not exe:
+        raise ValueError("Claude Code isn't installed on this computer yet. Install it from "
+                         "code.claude.com/docs/en/setup, then press Connect again.")
+    if _login["proc"] and _login["proc"].poll() is None:
+        return claude_account()
+    kw = {"creationflags": subprocess.CREATE_NEW_CONSOLE} if sys.platform == "win32" else {"start_new_session": True}
+    env = {k: v for k, v in os.environ.items() if k not in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")}
+    _login.update(proc=subprocess.Popen([exe, "auth", "login", "--claudeai"], env=env, **kw), at=time.time())
+    _status_mem["data"] = None
+    return claude_account()
+
+
+def claude_logout() -> dict:
+    if config.ACCOUNTS:
+        raise ValueError(PLAN_ONLY_OWN_USE)
+    exe = claude_cli()
+    if exe:
+        try:
+            subprocess.run([exe, "auth", "logout"], capture_output=True, timeout=30, creationflags=_no_window())
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    _status_mem["data"] = None
+    return claude_account(fresh=True)
 
 
 def _claude_cli(model, prompt, schema):

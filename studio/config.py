@@ -52,8 +52,8 @@ def _read_secret(var: str, file_var: str, pattern: str) -> str:
 
 
 # ---------------------------------------------------------------- where things live
-# Everything PeakCut keeps is in one folder. Which one: PEAKCUT_DATA in .env if it is set; otherwise the folder the
-# owner chose in Settings, Storage (kept in storage.json); otherwise "data" inside PeakCut's own folder.
+# Everything ClipForge keeps is in one folder. Which one: PEAKCUT_DATA in .env if it is set; otherwise the folder the
+# owner chose in Settings, Storage (kept in storage.json); otherwise "data" inside ClipForge's own folder.
 STORAGE_FILE = Path(env("PEAKCUT_STORAGE_FILE") or ROOT / "storage.json")
 
 
@@ -65,7 +65,7 @@ def _move_folder(old: Path, new: Path) -> bool:
         return True
     items = list(old.iterdir())
     if items:
-        print(f"\n  Moving PeakCut's folder to {new} ({len(items)} things). This is done once and can take a while...", flush=True)
+        print(f"\n  Moving ClipForge's folder to {new} ({len(items)} things). This is done once and can take a while...", flush=True)
     done = True
     for item in items:
         target = new / item.name
@@ -107,9 +107,9 @@ def _data_folder():
     try:
         new.mkdir(parents=True, exist_ok=True)
     except OSError:
-        raise SystemExit(f"\n  PeakCut's folder is set to {new}, and that can't be reached right now.\n"
-                         f"  Connect that drive and start PeakCut again, or delete {STORAGE_FILE} to go back to the\n"
-                         f"  folder inside PeakCut (your videos and clips stay where they are).\n")
+        raise SystemExit(f"\n  ClipForge's folder is set to {new}, and that can't be reached right now.\n"
+                         f"  Connect that drive and start ClipForge again, or delete {STORAGE_FILE} to go back to the\n"
+                         f"  folder inside ClipForge (your videos and clips stay where they are).\n")
     if chosen.get("move_from"):
         if _move_folder(Path(chosen["move_from"]), new):
             STORAGE_FILE.write_text(json.dumps({"path": str(new)}, indent=1), encoding="utf-8")
@@ -145,17 +145,17 @@ PORT = int(env("PEAKCUT_PORT") or "8765")
 PUBLIC_URL = (env("PEAKCUT_PUBLIC_URL") or f"http://127.0.0.1:{PORT}").rstrip("/")   # e.g. https://peakcut.com
 HTTPS = PUBLIC_URL.startswith("https://")
 SESSION_DAYS = int(env("PEAKCUT_SESSION_DAYS", "30"))
-# Accounts are off by default: PeakCut opens straight into the dashboard, with no sign-in, which is what you want
+# Accounts are off by default: ClipForge opens straight into the dashboard, with no sign-in, which is what you want
 # on your own computer. On a server that other people can reach, set PEAKCUT_ACCOUNTS=1: everyone then signs up
 # and signs in, and each person only sees their own videos.
 ACCOUNTS = env("PEAKCUT_ACCOUNTS", "0") == "1"
 # The two buttons along the top of the dashboard: the project's code, and where to follow its maker (feedback goes
 # there too). Set either to an empty value to hide that button, or point them at your own pages in a fork.
-REPO_URL = env("PEAKCUT_REPO_URL", "https://github.com/haziqahmedqasmi/peakcut").strip()
-FOLLOW_URL = env("PEAKCUT_FOLLOW_URL", "https://www.instagram.com/haziq.builds/").strip()
+REPO_URL = env("PEAKCUT_REPO_URL", "").strip()
+FOLLOW_URL = env("PEAKCUT_FOLLOW_URL", "").strip()
 
 # ---------------------------------------------------------------- limits (per user, and for the whole server)
-# Your own PeakCut has no limits unless you set them: 0 (the default) means "none" for every limit below. The
+# Your own ClipForge has no limits unless you set them: 0 (the default) means "none" for every limit below. The
 # machine still protects itself: new work waits while the processor, memory or disk are nearly full (load.py).
 _NONE = 10 ** 7                      # what "no limit" becomes: far beyond anything real, and still a plain number
 
@@ -186,7 +186,7 @@ ALLOWED_SITES = tuple(s.strip().lower() for s in env(
 AI_PROVIDER = env("PEAKCUT_AI_PROVIDER", "gemini").strip().lower()            # gemini, openai, xai, groq, openrouter, anthropic, claude-code, ollama, custom
 AI_MODELS = [m.strip() for m in env("PEAKCUT_AI_MODELS", "").split(",") if m.strip()]   # tried in this order
 AI_BASE_URL = env("PEAKCUT_AI_BASE_URL", "").rstrip("/")                      # only for "custom", or to override a provider's address
-CLAUDE_CLI = env("PEAKCUT_CLAUDE_CLI", "").strip()     # for "claude-code": where the claude program is, if PeakCut can't find it
+CLAUDE_CLI = env("PEAKCUT_CLAUDE_CLI", "").strip()     # for "claude-code": where the claude program is, if ClipForge can't find it
 
 # ---------------------------------------------------------------- how a post is worded (see studio/posting.py)
 # Blanks filled in for each clip: {title} what happens, {description} one line about it, {hashtags} the clip's own
@@ -213,7 +213,7 @@ SMTP_PORT = int(env("PEAKCUT_SMTP_PORT", "587"))
 SMTP_USER = env("PEAKCUT_SMTP_USER", "")
 MAIL_FROM = env("PEAKCUT_MAIL_FROM", "")
 CONTACT_EMAIL = env("PEAKCUT_CONTACT_EMAIL", "")
-LEGAL_NAME = env("PEAKCUT_LEGAL_NAME", "")            # the business that runs PeakCut, for the legal pages
+LEGAL_NAME = env("PEAKCUT_LEGAL_NAME", "")            # the business that runs ClipForge, for the legal pages
 LEGAL_COUNTRY = env("PEAKCUT_LEGAL_COUNTRY", "")      # whose law applies, for the terms
 # Set to 1 on a public site with email set up: password sign-ups must then confirm their address before clipping.
 VERIFY_EMAIL = env("PEAKCUT_VERIFY_EMAIL", "0") == "1"
