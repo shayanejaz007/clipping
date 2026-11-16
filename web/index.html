@@ -936,7 +936,7 @@ function startTour() {
   const steps = [
     {t: "Welcome to ClipForge", x: "Long videos and live streams go in, captioned vertical clips come out. Here is a quick look around.",
      chips: [["link", "Paste a link"], ["scissors", "Get clips", 1], ["radio", "Live streams"], ["send", "Post them"]]},
-    {t: "Start with any video", x: "Paste a YouTube, Twitch or Kick link here, or upload a file. ClipForge finds the best moments and makes each one a short with captions.",
+    {t: "Start with any video", x: "Paste a link to any stream or video (YouTube, Twitch, Kick, TikTok, X and more), or upload a file. ClipForge finds the best moments and makes each one a short with captions.",
      sel: "#addform", dock: "bottom", chips: [["link", "YouTube"], ["link", "Twitch"], ["link", "Kick"], ["up", "Upload", 1]]},
     {t: "Your day at a glance", x: "Home shows what is recording, how many clips were made and posted today, and what is waiting to go out.",
      sel: "#ov .tiles", dock: "bottom", chips: [["radio", "Recording"], ["scissors", "Clips today", 1], ["send", "Posted"], ["clock", "Waiting"]]},
@@ -1360,7 +1360,7 @@ function setTab(t) {
 function drawAdd(variant) {
   const c = creator();
   $("#add").innerHTML = `<form class="composer ${variant === "hero" ? "big" : "compact"}" id="addform">
-    <div class="composer-input">${ic("link")}<input id="url" placeholder="Paste a YouTube, Twitch or Kick video link" autocomplete="off" aria-label="Video link"></div>
+    <div class="composer-input">${ic("link")}<input id="url" placeholder="Paste a link to any stream or video" autocomplete="off" aria-label="Video link"></div>
     <div class="att" id="att"><div><div class="att-in" id="attIn"></div></div></div>
     <div class="composer-bar">
       <button type="button" class="chip" data-act="pickfile">${ic("up")}Upload video</button>
@@ -1456,7 +1456,9 @@ const VIDEO_EXT = /\.(mp4|mov|mkv|webm|m4v|ts|flv)$/i;
 const fmtLen = s => { s = Math.round(s || 0); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = String(s % 60).padStart(2, "0"); return h ? `${h}:${String(m).padStart(2, "0")}:${x}` : `${m}:${x}`; };
 const fmtSize = b => b >= 1e9 ? (b / 1e9).toFixed(1) + " GB" : Math.max(1, Math.round(b / 1e6)) + " MB";
 const isChannel = u => /^(https?:\/\/)?(www\.)?(twitch\.tv|kick\.com)\/[A-Za-z0-9_]+\/?$/.test(u) || /youtube\.com\/(@[^/]+|channel\/[^/]+)\/?(live|videos|streams)?\/?$/.test(u);
-const looksLink = u => /^https?:\/\/([\w-]+\.)*(youtube\.com|youtu\.be|twitch\.tv|kick\.com)\//i.test(u);
+// The sites the server will fetch from (Settings can't change them; PEAKCUT_ALLOWED_SITES in .env can).
+const looksLink = u => { let h; try { const x = new URL(u); if (!/^https?:$/.test(x.protocol)) return false; h = x.hostname.toLowerCase(); } catch { return false; }
+  return (S.status?.sites || ["youtube.com", "youtu.be", "twitch.tv", "kick.com"]).some(s => h === s || h.endsWith("." + s)); };
 const fullLink = u => /[?&]v=[\w-]{11}\b|youtu\.be\/[\w-]{11}\b|\/(shorts|live|embed)\/[\w-]{11}\b|twitch\.tv\/videos\/\d{6,}|clips\.twitch\.tv\/\w|twitch\.tv\/\w+\/clip\/\w|kick\.com\/[\w-]+\/(videos?|clips?)\/[\w-]{6,}/i.test(u);
 const batchMax = () => S.status.max_batch || 5;
 const batchUsed = A => A.files.length + A.links.filter(l => l.state !== "bad").length;
@@ -1512,7 +1514,7 @@ function drawAtt() {
     if (f && !f.dur) { f.dur = v.duration; const th = v.parentElement; if (!th.querySelector(".du")) th.insertAdjacentHTML("beforeend", `<span class="du">${fmtLen(f.dur)}</span>`); }
   }, {once: true}));
   $("#att")?.classList.toggle("has", !!h);
-  const u = $("#url"); if (u) u.placeholder = A.links.length || A.files.length ? "Paste another link" : "Paste a YouTube, Twitch or Kick video link";
+  const u = $("#url"); if (u) u.placeholder = A.links.length || A.files.length ? "Paste another link" : "Paste a link to any stream or video";
   const b = $("#goBtn");
   if (b) { b.disabled = A.busy;
     const k = A.files.length + A.links.filter(l => l.state === "ok").length;
@@ -1551,7 +1553,7 @@ function onLink(input) {
   const A = att(), u = input.value.trim();
   if (!u) { A.note = null; return drawAtt(); }
   if (isChannel(u)) { A.note = "That's a channel, not a video. To clip their live streams, add them as a creator and press Start recording."; return drawAtt(); }
-  if (!looksLink(u)) { A.note = u.length > 10 ? "Paste a full YouTube, Twitch or Kick video link." : null; return drawAtt(); }
+  if (!looksLink(u)) { A.note = u.length > 10 ? "Paste the full link to a video." : null; return drawAtt(); }
   A.note = null; drawAtt();
   if (fullLink(u)) return takeLink(A, u, input);
   linkTimer = setTimeout(() => { if (input.value.trim() === u) takeLink(A, u, input); }, 900);   // other link shapes: take it once typing stops
@@ -1636,7 +1638,7 @@ async function makeClips() {
     return;
   }
   if (!canGo(A)) {
-    toast(A.note || "Paste a YouTube, Twitch or Kick video link, or add a video file first.", "bad");
+    toast(A.note || "Paste a video link (YouTube, Twitch, Kick, TikTok, X and more), or add a video file first.", "bad");
     $("#url")?.focus();
     return;
   }
@@ -2012,7 +2014,7 @@ async function drawAutomation() {
     <div class="card"><h2>Captions</h2><p class="help">The AI writes each post's title and caption fresh for each platform, in a natural voice, as if you typed it yourself. If the AI isn't set up or doesn't answer, the post templates are used instead.</p>
       <div class="fields"><label class="sw span"><input type="checkbox" data-a="human_captions" ${a.human_captions ? "checked" : ""}><span>Write captions like a person<small>A different title and caption for YouTube, Instagram and TikTok.</small></span></label>
         <label class="f span">Your style<input data-a="voice" value="${esc(a.voice)}" placeholder="For example: chill, a bit sarcastic, lowercase, no emoji" spellcheck="false"><span class="hint">Optional. A few words on how you write.</span></label>
-        <label class="f span">Hashtags to always add<input data-a="always_tags" value="${esc(a.always_tags)}" placeholder="GTA6 Gaming Shorts" spellcheck="false"><span class="hint">Optional. Separate with spaces or commas.</span></label></div></div>
+        <label class="f span">Hashtags to always add<input data-a="always_tags" value="${esc(a.always_tags)}" placeholder="Shorts Clips" spellcheck="false"><span class="hint">Optional. Separate with spaces or commas.</span></label></div></div>
     <div class="card"><h2>Timing</h2><p class="help">Posts are spread out so each account looks like a person posting, not a bot.</p>
       <div class="fields"><label class="f">Only post clips scoring at least<input data-a="min_score" type="number" min="0" max="100" value="${a.min_score}"></label>
         <label class="f">Minutes between posts on one account<input data-a="gap_min" type="number" min="0" value="${a.gap_min}"></label>

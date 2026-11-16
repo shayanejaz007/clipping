@@ -24,9 +24,15 @@ CLIP = {"title": "Police chase ends in the ocean", "description": "He drove stra
         "hashtags": ["gta6", "chase"], "hook": "NO WAY"}
 plain = dict(creators.DEFAULTS, name="GTA clips")
 
-check("the built-in title follows the GTA 6 template", posting._title(CLIP, plain),
-      "Police chase ends in the ocean in GTA 6 😳 #shorts")
-check("the built-in text follows the GTA 6 template", posting._caption(CLIP, plain),
+check("with no templates set, the title is the clip's own, for any kind of stream", posting._title(CLIP, plain),
+      "Police chase ends in the ocean")
+check("...and the text is its description and its own hashtags", posting._caption(CLIP, plain),
+      "He drove straight off the pier to lose the cops.\n\n#gta6 #chase")
+
+config.TITLE_TEMPLATE = "{title} in GTA 6 😳 #shorts"            # a channel that is always about one game
+config.POST_TEMPLATE = "{description}\nFollow for daily GTA 6 clips 🌴\n#GTA6 #GTAVI #Gaming #Shorts"
+check("a title template from .env is used", posting._title(CLIP, plain), "Police chase ends in the ocean in GTA 6 😳 #shorts")
+check("a text template from .env is used", posting._caption(CLIP, plain),
       "He drove straight off the pier to lose the cops.\nFollow for daily GTA 6 clips 🌴\n#GTA6 #GTAVI #Gaming #Shorts")
 
 footer = dict(plain, post_footer="Clipped from the stream")

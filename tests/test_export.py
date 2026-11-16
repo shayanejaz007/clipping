@@ -40,8 +40,8 @@ export.on_clip_made(job, clip)
 stem = "Police chase ends in the ocean (clip03-1a2b3c)"
 check("the clip is copied into the folder, which is made if missing", (out / f"{stem}.mp4").read_bytes(), b"fake video one")
 check("a text file beside it holds the title and post text, worded by the templates", (out / f"{stem}.txt").read_text(encoding="utf-8"),
-      "Title: Police chase: ends in the ocean? in GTA 6 😳 #shorts\n\n"
-      "He drove straight off the pier to lose the cops.\nFollow for daily GTA 6 clips 🌴\n#GTA6 #GTAVI #Gaming #Shorts\n")
+      "Title: Police chase: ends in the ocean?\n\n"
+      "He drove straight off the pier to lose the cops.\n\n#gta6\n")
 check("no half-written files are left behind", sorted(p.suffix for p in out.iterdir()), [".mp4", ".txt"])
 
 (work / "clips" / "clip03.mp4").write_bytes(b"fake video two")

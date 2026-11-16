@@ -179,7 +179,9 @@ MAX_LIVE_HOURS = _limit("PEAKCUT_MAX_LIVE_HOURS")                # a recording s
 MAX_USER_GB = _limit("PEAKCUT_MAX_USER_GB")                      # disk space one account may fill
 MAX_CREATORS = int(_limit("PEAKCUT_MAX_CREATORS"))               # creators one account may add
 ALLOWED_SITES = tuple(s.strip().lower() for s in env(
-    "PEAKCUT_ALLOWED_SITES", "youtube.com,youtu.be,twitch.tv,kick.com").split(",") if s.strip())
+    "PEAKCUT_ALLOWED_SITES", "youtube.com,youtu.be,twitch.tv,kick.com,tiktok.com,instagram.com,facebook.com,fb.watch,"
+                             "x.com,twitter.com,vimeo.com,rumble.com,dailymotion.com,dai.ly,reddit.com,streamable.com,"
+                             "bilibili.com,trovo.live").split(",") if s.strip())
 
 # ---------------------------------------------------------------- AI (bring your own key: see studio/ai.py)
 # These are the starting values. Whatever is saved from the dashboard (Settings, AI) is used instead.
@@ -193,9 +195,10 @@ CLAUDE_CLI = env("PEAKCUT_CLAUDE_CLI", "").strip()     # for "claude-code": wher
 # tags, {hook} the big text on the video, {footer} the creator's extra line. In .env, write \n for a new line.
 # A creator's own templates (on their page, under Posting) win over these.
 EXPORT_DIR = env("PEAKCUT_EXPORT_DIR", "").strip().strip('"')     # a folder every finished clip is copied into, with its title and text
-TITLE_TEMPLATE = env("PEAKCUT_TITLE_TEMPLATE", "{title} in GTA 6 😳 #shorts").replace("\\n", " ").strip()
-POST_TEMPLATE = env("PEAKCUT_POST_TEMPLATE",
-                    "{description}\\nFollow for daily GTA 6 clips 🌴\\n#GTA6 #GTAVI #Gaming #Shorts").replace("\\n", "\n").strip()
+# Empty (the default): the title is the clip's own, and the text is its description and its own hashtags, so it
+# fits any kind of stream. Set them for a channel that is always about one thing.
+TITLE_TEMPLATE = env("PEAKCUT_TITLE_TEMPLATE", "").replace("\\n", " ").strip()
+POST_TEMPLATE = env("PEAKCUT_POST_TEMPLATE", "").replace("\\n", "\n").strip()
 
 
 def ai_key() -> str:
