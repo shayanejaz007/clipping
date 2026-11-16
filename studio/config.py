@@ -183,9 +183,19 @@ ALLOWED_SITES = tuple(s.strip().lower() for s in env(
 
 # ---------------------------------------------------------------- AI (bring your own key: see studio/ai.py)
 # These are the starting values. Whatever is saved from the dashboard (Settings, AI) is used instead.
-AI_PROVIDER = env("PEAKCUT_AI_PROVIDER", "gemini").strip().lower()            # gemini, openai, xai, groq, openrouter, anthropic, ollama, custom
+AI_PROVIDER = env("PEAKCUT_AI_PROVIDER", "gemini").strip().lower()            # gemini, openai, xai, groq, openrouter, anthropic, claude-code, ollama, custom
 AI_MODELS = [m.strip() for m in env("PEAKCUT_AI_MODELS", "").split(",") if m.strip()]   # tried in this order
 AI_BASE_URL = env("PEAKCUT_AI_BASE_URL", "").rstrip("/")                      # only for "custom", or to override a provider's address
+CLAUDE_CLI = env("PEAKCUT_CLAUDE_CLI", "").strip()     # for "claude-code": where the claude program is, if PeakCut can't find it
+
+# ---------------------------------------------------------------- how a post is worded (see studio/posting.py)
+# Blanks filled in for each clip: {title} what happens, {description} one line about it, {hashtags} the clip's own
+# tags, {hook} the big text on the video, {footer} the creator's extra line. In .env, write \n for a new line.
+# A creator's own templates (on their page, under Posting) win over these.
+EXPORT_DIR = env("PEAKCUT_EXPORT_DIR", "").strip().strip('"')     # a folder every finished clip is copied into, with its title and text
+TITLE_TEMPLATE = env("PEAKCUT_TITLE_TEMPLATE", "{title} in GTA 6 😳 #shorts").replace("\\n", " ").strip()
+POST_TEMPLATE = env("PEAKCUT_POST_TEMPLATE",
+                    "{description}\\nFollow for daily GTA 6 clips 🌴\\n#GTA6 #GTAVI #Gaming #Shorts").replace("\\n", "\n").strip()
 
 
 def ai_key() -> str:

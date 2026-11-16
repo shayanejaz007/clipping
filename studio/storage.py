@@ -91,14 +91,14 @@ def open_folder():
         subprocess.Popen(["xdg-open", p])
 
 
-_PICK = ("import tkinter as tk\nfrom tkinter import filedialog\nr = tk.Tk()\nr.withdraw()\nr.attributes('-topmost', True)\n"
-         "print(filedialog.askdirectory(title='Choose where PeakCut keeps its videos and clips') or '')\n")
+_PICK = ("import sys\nimport tkinter as tk\nfrom tkinter import filedialog\nr = tk.Tk()\nr.withdraw()\nr.attributes('-topmost', True)\n"
+         "print(filedialog.askdirectory(title=sys.argv[1]) or '')\n")
 
 
-def pick_folder() -> str:
+def pick_folder(title: str = "Choose where PeakCut keeps its videos and clips") -> str:
     """The computer's own "choose a folder" window. Returns the folder, or "" if it was closed or cannot be shown."""
     try:
-        r = subprocess.run([sys.executable, "-c", _PICK], capture_output=True, text=True, timeout=600,
+        r = subprocess.run([sys.executable, "-c", _PICK, title], capture_output=True, text=True, timeout=600,
                            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     except (OSError, subprocess.TimeoutExpired):
         return ""

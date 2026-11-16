@@ -1864,7 +1864,10 @@ function drawCreatorForm() {
         <label class="f">Most posts per account per day<input data-k="daily_cap" type="number" value="${c.daily_cap}"></label>
         <label class="f">Who can see posts (YouTube, TikTok)<select data-k="privacy">${opts({public:"Public", unlisted:"Unlisted", private:"Private"}, c.privacy)}</select></label>
         <label class="f">Campaign pay per 1,000 views ($)<input data-k="rate_per_1k" type="number" step="0.1" min="0" value="${c.rate_per_1k}"></label>
-        <label class="f span">Line added to every post (credit, campaign tag)<input data-k="post_footer" value="${esc(c.post_footer)}" placeholder="Clipped from @streamer"></label></div></div>
+        <label class="f span">Line added to every post (credit, campaign tag)<input data-k="post_footer" value="${esc(c.post_footer)}" placeholder="Clipped from @streamer"></label>
+        <label class="f span">Post title<input data-k="title_template" value="${esc(c.title_template)}" placeholder="${esc(S.status.post_templates?.title || "{title}")}" spellcheck="false"><span class="hint">Leave empty to use the standard one shown. Blanks: {title} what happens, {hook} the big text on the video.</span></label>
+        <label class="f span">Post text<textarea data-k="post_template" rows="4" spellcheck="false" placeholder="${esc(S.status.post_templates?.text || "{description}")}">${esc(c.post_template)}</textarea><span class="hint">Leave empty to use the standard one shown. Blanks: {description} one line about the clip, {hashtags} its own tags, {footer} the line above.</span></label>
+        ${S.status.accounts === false ? `<label class="f span">Copy every finished clip into this folder<span class="with"><input data-k="export_folder" id="c_export" value="${esc(c.export_folder || "")}" placeholder="${esc(S.status.export_dir || "For example D:\\Clips\\GTA 6")}" spellcheck="false"><button class="btn" type="button" data-act="clippick">Browse</button></span><span class="hint">Each clip lands here as an .mp4 with a .txt beside it holding its title and post text, worded as above. Leave empty for ${S.status.export_dir ? "the standard folder shown" : "no copies"}.</span></label>` : ""}</div></div>
     <div class="card danger-card"><h2>Delete this creator</h2><p class="help">Removes ${esc(c.name)}, their settings and every video and clip filed under them. This cannot be undone.</p>
       <button class="btn danger" data-act="delcreator">${ic("trash")}Delete creator</button></div>
     <div class="savebar" id="savebar"><span>${ic("warn")}You have unsaved changes</span><button class="btn ghost" data-act="cdiscard">Discard</button><button class="btn primary" data-act="csave">${ic("check")}Save changes</button></div>`;
@@ -2002,6 +2005,10 @@ function aiHints() {
   $("#ai_key").placeholder = same && k.has_key ? `Saved${k.key_hint ? ", ends in " + k.key_hint : ""}. Paste a new key to replace it` : pv.needs_key ? "Paste your key" : "Not needed";
   $("#ai_keyhint").innerHTML = pv.key_url ? `${pv.needs_key ? "Get a key at" : "Set it up at"} <a href="${esc(pv.key_url)}" target="_blank" rel="noopener">${esc(pv.key_url.replace("https://", ""))}</a>. The key stays on this server and is never shown again.` : "The key stays on this server and is never shown again.";
   $("#ai_model").placeholder = pv.example ? "For example " + pv.example : "The model id, exactly as the service names it";
+  $("#ai_key").closest("label").hidden = pv.id === "claude-code";      // the Claude sign-in stays with Claude Code
+  if (pv.id === "claude-code") $("#ai_modelhint").innerHTML = (k.claude_cli ? "Claude Code is installed here. " : `Claude Code isn't installed here yet: <a href="${esc(pv.key_url)}" target="_blank" rel="noopener">install it</a>. `)
+      + "Then run <code>claude</code> in a terminal, type <code>/login</code> and sign in with your Claude account. Use sonnet, or haiku to use less of your plan. No key needed.";
+  else $("#ai_modelhint").textContent = "A fast, inexpensive model is the right choice. Add a second one after a comma to fall back on.";
   $("#ai_base").placeholder = pv.address || "http://127.0.0.1:1234/v1";
   $("#ai_basewrap").hidden = pv.id !== "custom" && !(same && k.base_url);
 }
@@ -2022,7 +2029,7 @@ async function drawSettings() {
             <label class="f">Key<input id="ai_key" type="password" autocomplete="off" spellcheck="false"><span class="hint" id="ai_keyhint"></span></label>
             <label class="f" id="ai_basewrap">Address<input id="ai_base" value="${esc(k.base_url || "")}" spellcheck="false"><span class="hint">Where the service answers. Only needed for a custom service.</span></label>
             <label class="f">Model<span class="with"><input id="ai_model" list="ai_models" value="${esc(k.models.join(", "))}" spellcheck="false"><button class="btn" type="button" data-act="aimodels">Find models</button></span>
-              <datalist id="ai_models"></datalist><span class="hint">A fast, inexpensive model is the right choice. Add a second one after a comma to fall back on.</span></label>
+              <datalist id="ai_models"></datalist><span class="hint" id="ai_modelhint">A fast, inexpensive model is the right choice. Add a second one after a comma to fall back on.</span></label>
           </div>
           <div class="row" style="margin-top:20px"><button class="btn primary" data-act="aisave">Save and test</button>${k.ready ? `<button class="btn" data-act="aitest">Test again</button>` : ""}</div></section>`;
       aiHints();
@@ -2400,6 +2407,11 @@ document.addEventListener("click", async e => {
     if (a === "updlater") { try { localStorage.setItem("peakcut_update_seen", S.status.update?.latest || ""); } catch {} return drawShell(); }
     if (a === "storopen") { await send("/api/storage/open"); return; }
     if (a === "storchange") { S.storOpen = !S.storOpen; S.storNew = ""; return drawSettings(); }
+    if (a === "clippick") {
+      b.disabled = true;
+      try { const r = await send("/api/storage/pick", {for: "clips"}); if (r.path) { $("#c_export").value = r.path; dirty(true); } } finally { b.disabled = false; }
+      return;
+    }
     if (a === "storpick") {
       b.disabled = true;
       try { const r = await send("/api/storage/pick"); if (r.path) { S.storNew = r.path; $("#stor_new").value = r.path; } } finally { b.disabled = false; }

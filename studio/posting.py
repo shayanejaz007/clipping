@@ -1,4 +1,5 @@
 """Post queue: decides when each finished clip goes to which account, posts it, and tracks views."""
+import re
 import secrets
 import threading
 import time
@@ -90,7 +91,29 @@ def on_clip_ready(job, clip):
         creators.log(c["id"], f"Queued for {len(made)} account(s): {clip.get('title') or clip.get('hook')}")
 
 
+def _fill(template, clip, creator):
+    """A template with its blanks filled in for this clip. Unknown {words} are left as they are."""
+    blanks = {"title": clip.get("title") or clip.get("hook") or "Clip", "description": clip.get("description", ""),
+              "hashtags": " ".join("#" + h for h in clip.get("hashtags", [])), "hook": clip.get("hook", ""),
+              "footer": creator.get("post_footer", "")}
+    out = re.sub(r"\{(\w+)\}", lambda m: str(blanks.get(m.group(1), m.group(0))), template)
+    return "\n".join(re.sub(r"[ \t]{2,}", " ", line).strip() for line in out.split("\n")).strip()
+
+
+def _title(clip, creator):
+    t = creator.get("title_template") or config.TITLE_TEMPLATE
+    if not t:
+        return clip.get("title") or clip.get("hook") or "Clip"
+    return _fill(t, clip, creator)[:100]       # YouTube takes 100 characters at most
+
+
 def _caption(clip, creator):
+    t = creator.get("post_template") or config.POST_TEMPLATE
+    if t:
+        text = _fill(t, clip, creator)
+        if creator.get("post_footer") and "{footer}" not in t:
+            text += "\n\n" + creator["post_footer"]
+        return text
     tags = " ".join("#" + h for h in clip.get("hashtags", []))
     return "\n\n".join(x for x in (clip.get("description", ""), tags, creator.get("post_footer", "")) if x)
 
@@ -106,9 +129,10 @@ def _post(p):
             raise RuntimeError("That account was disconnected.")
         path = Path(job["dir"]) / "clips" / clip["file"]
         creator = creators.get(job["creator"]) or dict(creators.DEFAULTS, name="clips")
-        title, cap = clip.get("title") or clip.get("hook") or "Clip", _caption(clip, creator)
+        title, cap = _title(clip, creator), _caption(clip, creator)
         if acc["platform"] == "youtube":
-            rid, url = accounts.youtube_upload(acc, path, title, cap + "\n\n#Shorts", clip.get("hashtags", []), creator["privacy"])
+            shorts = "" if "#shorts" in (title + cap).lower() else "\n\n#Shorts"     # once is enough
+            rid, url = accounts.youtube_upload(acc, path, title, cap + shorts, clip.get("hashtags", []), creator["privacy"])
         elif acc["platform"] == "instagram":
             rid, url = accounts.instagram_upload(acc, path, f"{title}\n\n{cap}", job["id"])
         elif acc["platform"] == "tiktok":
@@ -256,6 +280,8 @@ def start():
                 p.update(status="failed", error="The studio closed during this upload. Check the account, then retry.")
         _save()
     jobs.on_clip_ready.append(on_clip_ready)
+    from . import export
+    jobs.on_clip_made.append(export.on_clip_made)
     threading.Thread(target=_run, daemon=True).start()
     threading.Thread(target=_stats, daemon=True).start()
     threading.Thread(target=alerts.digest_loop, args=(digest_text,), daemon=True).start()

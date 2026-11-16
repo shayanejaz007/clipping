@@ -106,6 +106,7 @@ _jobs: dict = {}
 _by_user: dict = {}                       # user -> {job id: job}: listing one person's videos never scans everyone's
 _lock = threading.RLock()
 on_clip_ready: list = []   # callbacks (job, clip), run once when a clip first finishes
+on_clip_made: list = []    # callbacks (job, clip), run every time a clip finishes, re-makes included
 
 DEFAULTS = {"max_clips": 6, "min_len": 15, "max_len": 60, "style": "bounce", "layout": "blur", "quality": 720,
             "range_start": None, "range_end": None}
@@ -390,6 +391,11 @@ def render_one(job, clip, words):
         clip.update(out, status="done", version=clip.get("version", 0) + 1, error=None)
         post = {k: clip[k] for k in ("title", "description", "hashtags", "hook", "start", "end", "score")}
         (d / "clips" / f"{clip['id']}.json").write_text(json.dumps(post, indent=1), encoding="utf-8")
+        for fn in on_clip_made:
+            try:
+                fn(job, clip)
+            except Exception:  # noqa: BLE001 - a clip that was made stays made
+                traceback.print_exc()
         if clip["version"] == 1:
             clip.setdefault("made_at", time.time())
             creators.log(job["creator"], f"Clip ready (score {clip['score']}): {clip['title'] or clip['hook']}")
@@ -685,10 +691,11 @@ def _run_job(job):
             words = [w for w in words if not a_s <= w["s"] < b_s] + tw
         words.sort(key=lambda w: w["s"])
         (d / "words.json").write_text(json.dumps(words), encoding="utf-8")
-    renders.shutdown(wait=False)
-    ahead.shutdown(wait=False)
+    # Clips that were given up on before they started are dropped here, so they cannot start later. The audio is
+    # not deleted by hand: a clip that is still running needs it, and it is freed once the last one finishes.
+    renders.shutdown(wait=False, cancel_futures=True)
+    ahead.shutdown(wait=False, cancel_futures=True)
     fetch.shutdown(wait=False)
-    del audio
     clips = job["clips"]
     job["ai"] = {"model": model, "tokens": tokens, "log": notes[-5:],
                  "note": "The AI was unavailable, so clips were picked by loudness only." if clips and not model else ""}

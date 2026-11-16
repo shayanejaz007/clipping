@@ -95,8 +95,87 @@ out, _s, _w = ai.call("model-a", "hello", brain.SCHEMA)
 check("ollama: no key header is sent", "Authorization" not in seen[0][2] and out == [CLIP])
 use("gemini")
 check("gemini without a key is not ready", not ai.ready())
+
+# ---- Claude through the owner's own plan: a stand-in for the claude program records how it was asked
+fake_dir = tempfile.mkdtemp(prefix="pc-fake-claude-")
+fake_log = os.path.join(fake_dir, "asked.json")
+fake = os.path.join(fake_dir, "claude.py")
+with open(fake, "w", encoding="utf-8") as f:
+    f.write(f"""import json, os, sys
+prompt = sys.stdin.read()
+json.dump({{"args": sys.argv[1:], "prompt": prompt, "cwd": os.getcwd(), "api_key": os.environ.get("ANTHROPIC_API_KEY"),
+           "token": os.environ.get("CLAUDE_CODE_OAUTH_TOKEN")}}, open({fake_log!r}, "w"))
+mode = os.environ.get("FAKE_CLAUDE", "ok")
+if mode == "login":
+    print(json.dumps({{"type": "result", "subtype": "success", "is_error": True, "result": "Not logged in · Please run /login"}}))
+elif mode == "limit":
+    print(json.dumps({{"type": "result", "subtype": "success", "is_error": True, "result": "Claude usage limit reached. Your limit will reset at 5pm"}}))
+else:
+    print(json.dumps({{"type": "result", "subtype": "success", "is_error": False, "result": "```json\\n" + json.dumps({{"items": [{json.dumps(CLIP)}]}}) + "\\n```",
+                      "usage": {{"input_tokens": 50, "cache_read_input_tokens": 10, "cache_creation_input_tokens": 5, "output_tokens": 12}}}}))
+""")
+if os.name == "nt":
+    runner = os.path.join(fake_dir, "claude.cmd")
+    open(runner, "w").write(f'@"{sys.executable}" "{fake}" %*\n')
+else:
+    runner = os.path.join(fake_dir, "claude")
+    open(runner, "w").write(f'#!/bin/sh\nexec "{sys.executable}" "{fake}" "$@"\n')
+    os.chmod(runner, 0o755)
+
+os.environ["PEAKCUT_AI_KEY"] = ""
+config._kept.clear()
+os.environ["ANTHROPIC_API_KEY"] = "sk-should-not-be-used"
+config.CLAUDE_CLI = runner
+was_accounts, config.ACCOUNTS = config.ACCOUNTS, False   # your own computer: no sign-in
+use("claude-code")
+check("claude-code needs no key and no address", ai.ready() and "plan" in ai.label())
+check("claude-code: the model list needs no network", ai.list_models("claude-code") == ["sonnet", "haiku", "opus"])
+out, sent, wrote = ai.call("sonnet", "hello", brain.SCHEMA)
+asked = json.load(open(fake_log))
+check("claude-code: answer read, tokens added up", out == [CLIP] and (sent, wrote) == (65, 12), str((out, sent, wrote)))
+a = asked["args"]
+check("claude-code: asked once, as JSON, with the chosen model", a[:3] == ["-p", "--output-format", "json"] and a[a.index("--model") + 1] == "sonnet")
+check("claude-code: every tool is switched off", a[a.index("--tools") + 1] == "" and "--strict-mcp-config" in a)
+check("claude-code: the prompt goes in on stdin with the schema", asked["prompt"].startswith("hello") and '"type": "array"' in asked["prompt"])
+check("claude-code: an API key in the environment is not passed on, so the plan is used", asked["api_key"] is None and asked["token"] is None)
+check("claude-code: runs in an empty folder of its own", "peakcut-claude-" in asked["cwd"] and not os.path.exists(asked["cwd"]))
+os.environ["PEAKCUT_AI_KEY"] = "a-key-meant-for-another-service"
+config._kept.clear()
+ai.call("haiku", "hello", brain.SCHEMA)
+check("claude-code: no key of PeakCut's is ever handed to Claude Code", json.load(open(fake_log))["token"] is None and ai.key() == "")
+saved = ai.save("claude-code", "sonnet, haiku", "", "pasted-by-mistake-123456")
+stored = json.load(open(os.path.join(os.environ["PEAKCUT_DATA"], "ai.json")))
+check("claude-code: saving keeps no key at all", stored["key"] == "" and not saved["has_key"] and saved["ready"], str(stored))
+config.ACCOUNTS = True
+try:
+    ai.save("claude-code", "sonnet")
+    check("claude-code: refused on a shared site", False)
+except ValueError as e:
+    check("claude-code: refused on a shared site", "own use" in str(e))
+check("claude-code: not offered and not ready on a shared site", not ai.ready()
+      and all(x["id"] != "claude-code" for x in ai.public()["providers"]))
+config.ACCOUNTS = False
+os.remove(os.path.join(os.environ["PEAKCUT_DATA"], "ai.json"))
+for mode, word in (("login", "/login"), ("limit", "refills by itself")):
+    os.environ["FAKE_CLAUDE"] = mode
+    try:
+        ai.call("sonnet", "hello", brain.SCHEMA)
+        check(f"claude-code: {mode} is an error", False)
+    except ai.AIError as e:
+        check(f"claude-code: {mode} explained in plain words", word in ai.explain(e), ai.explain(e))
+os.environ.pop("FAKE_CLAUDE")
+config.CLAUDE_CLI = os.path.join(fake_dir, "missing")
+try:
+    ai.call("sonnet", "hello", brain.SCHEMA)
+    check("claude-code: missing program is an error", False)
+except ai.AIError as e:
+    check("claude-code: a missing program says to install it", "isn't installed" in ai.explain(e), ai.explain(e))
+config.CLAUDE_CLI, config.ACCOUNTS = "", was_accounts
+os.environ.pop("ANTHROPIC_API_KEY")
+
 os.environ["PEAKCUT_AI_KEY"] = "test-key-123456"
 config._kept.clear()
+use("gemini")
 
 # ---- the whole path: a call is made for a user and shows up in their usage, and only theirs
 u1, _ = auth._create("ai-one@example.com", "One", password_hash="x")

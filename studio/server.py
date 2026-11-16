@@ -573,7 +573,7 @@ def status(request: Request):
     me_ = _me(request)
     return {"user": auth.public(me_), "update": updates.latest() if me_.is_admin else None, "accounts": config.ACCOUNTS, "disk_full": load.disk_full(), "no_ffmpeg": bool(_tools.missing()), "links": {"repo": config.REPO_URL, "follow": config.FOLLOW_URL}, "ai": usage.brief(), "unread": notices.unread(),
             "tour": not accounts.settings()["tour_done"],
-            "youtube": accounts.youtube_ready(), "connect": {p: accounts.can_connect(p) for p in accounts.PLATFORM_NAMES}, "max_upload_mb": config.MAX_UPLOAD_MB, "upload_part_mb": config.UPLOAD_PART_MB, "max_batch": config.MAX_ACTIVE_JOBS_PER_USER,
+            "youtube": accounts.youtube_ready(), "connect": {p: accounts.can_connect(p) for p in accounts.PLATFORM_NAMES}, "post_templates": {"title": config.TITLE_TEMPLATE, "text": config.POST_TEMPLATE}, "export_dir": config.EXPORT_DIR, "max_upload_mb": config.MAX_UPLOAD_MB, "upload_part_mb": config.UPLOAD_PART_MB, "max_batch": config.MAX_ACTIVE_JOBS_PER_USER,
             "styles": {k: v["label"] for k, v in render.STYLES.items()}, "layouts": render.LAYOUTS}
 
 
@@ -1407,11 +1407,13 @@ def storage_open(request: Request):
 
 
 @app.post("/api/storage/pick")
-def storage_pick(request: Request):
+def storage_pick(request: Request, body: dict = Body(default={})):
     from . import storage
     _admin(request)
     if not _on_this_computer(request):
         raise HTTPException(400, "Type the folder's path instead: a folder window can only be shown on the computer PeakCut runs on.")
+    if (body or {}).get("for") == "clips":
+        return {"path": storage.pick_folder("Choose the folder your finished clips are copied into")}
     return {"path": storage.pick_folder()}
 
 

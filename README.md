@@ -70,7 +70,8 @@ PEAKCUT_AI_KEY=your-key-here
 | `xai` | Grok (xAI) | https://console.x.ai |
 | `groq` | Groq | https://console.groq.com/keys |
 | `openrouter` | OpenRouter (many models, one key) | https://openrouter.ai/keys |
-| `anthropic` | Claude | https://console.anthropic.com |
+| `anthropic` | Claude, with an API key | https://console.anthropic.com |
+| `claude-code` | Claude, on your Pro or Max plan (no API key) | see [Use your Claude plan](#use-your-claude-plan) |
 | `ollama` | A model on your own machine, no key | https://ollama.com |
 | `custom` | Any OpenAI-compatible address: also set `PEAKCUT_AI_BASE_URL` | |
 
@@ -80,6 +81,38 @@ PEAKCUT_AI_KEY=your-key-here
 - You pay the AI service directly for what you use. The **AI usage** page in the app shows how many requests and
   tokens each video took.
 - Speech to text does not use the AI service. It runs on your own machine, so audio never leaves it.
+
+### Use your Claude plan
+
+If you pay for Claude Pro or Max, PeakCut can use that instead of an API key. It asks Claude through the Claude Code
+program on the same computer, which you sign in to yourself through Anthropic's own sign-in. PeakCut never sees or
+keeps your Claude sign-in. Since 15 June 2026, Claude Code's background use (`claude -p`, which is what PeakCut runs)
+is counted against your plan's monthly allowance for apps and scripts, which is kept separate from your normal chat
+limits.
+
+1. Install Claude Code: https://code.claude.com/docs/en/setup (on a Mac or Linux:
+   `curl -fsSL https://claude.ai/install.sh | bash`; on Windows, in PowerShell: `irm https://claude.ai/install.ps1 | iex`).
+2. Sign in once: open a terminal, run `claude`, type `/login`, choose your Claude account and finish in the browser.
+   Then type `/exit`.
+3. In PeakCut, open **Settings, AI**, choose **Claude (your Pro or Max plan)**, type `sonnet` as the model (or
+   `haiku`, which uses less of your plan) and press **Save and test**. There is no key to paste.
+
+Or in `.env`:
+
+```ini
+PEAKCUT_AI_PROVIDER=claude-code
+PEAKCUT_AI_MODELS=sonnet,haiku
+```
+
+- If PeakCut says Claude Code isn't installed although it is, set `PEAKCUT_CLAUDE_CLI` to the full path of the
+  program (`which claude` on a Mac or Linux, `where claude` on Windows shows it).
+- On a machine with no browser, sign Claude Code in the way its own docs describe
+  (https://code.claude.com/docs/en/authentication). PeakCut only starts the program and leaves the sign-in to it.
+- An `ANTHROPIC_API_KEY` in your environment is ignored for this choice, so your plan is used and not API credit.
+- Claude Code is run with all of its tools switched off, in an empty folder, so text from a video can't make it read
+  or change anything on your computer.
+- This is for your own use only. Anthropic's terms don't allow a plan to serve other people, so this choice is
+  switched off when accounts are on (`PEAKCUT_ACCOUNTS=1`). Use an API key there.
 
 ## Settings
 
